@@ -7,18 +7,33 @@ import (
 )
 
 func main() {
+	supCom = map[string]cliCommand{
+		"exit": {
+			name:        "exit",
+			description: "Exit the Pokedex",
+			callback:    commandExit,
+		},
+		"help": {
+			name:        "help",
+			description: "Displays a help message",
+			callback:    commandHelp,
+		},
+	}
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
 		fmt.Println("Pokedex > ")
 		scanner.Scan()
 		line := scanner.Text()
-		if line == "q" {
-			break
-		}
 		cleanLine := cleanInput(line)
 		if len(cleanLine) > 0 {
-			fmt.Printf("Your command was: %s\n", cleanLine[0])
+			cmdName := cleanLine[0]
+			if cmd, ok := supCom[cmdName]; ok {
+				cmd.callback()
+			} else {
+				fmt.Println("Unknown command")
+			}
+
 		}
 	}
 }
