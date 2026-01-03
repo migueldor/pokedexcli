@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+	"math/rand"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/migueldor/pokedexcli/internal/pokeapi"
-	"github.com/migueldor/pokedexcli/internal/pokecache"
 )
 
 func cleanInput(text string) []string {
@@ -34,17 +32,9 @@ var supCom map[string]cliCommand
 
 type config struct {
 	pokeapiClient pokeapi.Client
+	caughtPokemon map[string]pokeapi.PokemonResponse
 	Previous      string
 	Next          string
-}
-
-func NewClient() pokeapi.Client {
-	cache := pokecache.NewCache(5 * time.Second)
-
-	return pokeapi.Client{
-		Cache:      cache,
-		HttpClient: http.Client{},
-	}
 }
 
 func commandExit(caller *config, opt string) error {
@@ -63,7 +53,7 @@ func commandHelp(caller *config, opt string) error {
 }
 
 func commandMap(caller *config, opt string) error {
-	client := NewClient()
+	client := caller.pokeapiClient
 	if caller.Next == "" {
 		caller.Next = "https://pokeapi.co/api/v2/location-area"
 	}
@@ -85,7 +75,7 @@ func commandMap(caller *config, opt string) error {
 }
 
 func commandMapb(caller *config, opt string) error {
-	client := NewClient()
+	client := caller.pokeapiClient
 	if caller.Previous == "" {
 		fmt.Printf("you're on the first page\n")
 		return nil
@@ -108,9 +98,9 @@ func commandMapb(caller *config, opt string) error {
 }
 
 func commandExplore(caller *config, opt string) error {
-	client := NewClient()
+	client := caller.pokeapiClient
 
-	location, err := client.GetLocation(opt)
+	location, err := client.Location(opt)
 	if err != nil {
 		fmt.Println("something went wrong")
 		return err
@@ -120,6 +110,59 @@ func commandExplore(caller *config, opt string) error {
 	fmt.Println("Found Pokemon:")
 	for _, pokemon := range location.PokemonEncounters {
 		fmt.Println(pokemon.Pokemon.Name)
+	}
+	return nil
+}
+
+func commandCatch(caller *config, opt string) error {
+	client := caller.pokeapiClient
+
+	pokemon, err := client.Pokemon(opt)
+	if err != nil {
+		fmt.Println("something went wrong")
+		return err
+	}
+	res := rand.Intn(pokemon.BaseExperience)
+	fmt.Printf("Throwing a Pokeball at %s...\n", opt)
+
+	if res > 40 {
+		fmt.Printf("%s escaped!\n", pokemon.Name)
+		return nil
+	}
+
+	fmt.Printf("%s was caught!\n", pokemon.Name)
+
+	caller.caughtPokemon[pokemon.Name] = pokemon
+	return nil
+}
+
+func commandInspect(caller *config, opt string) error {
+	client := caller.pokeapiClient
+	types := ""
+	pokemon, err := client.Pokemon(opt)
+	if err != nil {
+		fmt.Println("something went wrong")
+		return err
+	}
+	if _, ok := caller.caughtPokemon[pokemon.Name]; ok {
+		fmt.Printf("Name: %s\n", pokemon.Name)
+		fmt.Printf("ID number: %d\n", pokemon.ID)
+		for i := 0; i < len(pokemon.Types); i++ {
+			types = types + " " + pokemon.Types[i].Type.Name
+		}
+		fmt.Printf("Types: %v\n", types)
+		fmt.Printf("Height: %d cm\n", pokemon.Height)
+	} else {
+		fmt.Printf("%s not caught yet\n", pokemon.Name)
+	}
+
+	return nil
+}
+
+func commandPokedex(caller *config, opt string) error {
+	fmt.Println("Your pokedex: ")
+	for _, pokemon := range caller.caughtPokemon {
+		fmt.Printf("- %s\n", pokemon.Name)
 	}
 	return nil
 }

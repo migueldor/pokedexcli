@@ -4,10 +4,17 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/migueldor/pokedexcli/internal/pokeapi"
 )
 
 func main() {
-	mycaller := config{}
+	pokeClient := pokeapi.NewClient(5*time.Second, time.Minute*5)
+	mycaller := &config{
+		pokeapiClient: pokeClient,
+		caughtPokemon: map[string]pokeapi.PokemonResponse{},
+	}
 	supCom = map[string]cliCommand{
 		"exit": {
 			name:        "exit",
@@ -31,8 +38,23 @@ func main() {
 		},
 		"explore": {
 			name:        "explore",
-			description: "",
+			description: "Shows the pokemon in the area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "",
+			callback:    commandCatch,
+		},
+		"inspect": {
+			name:        "inspect",
+			description: "",
+			callback:    commandInspect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "",
+			callback:    commandPokedex,
 		},
 	}
 	scanner := bufio.NewScanner(os.Stdin)
@@ -45,7 +67,7 @@ func main() {
 		if len(cleanLine) == 1 {
 			cmdName := cleanLine[0]
 			if cmd, ok := supCom[cmdName]; ok {
-				cmd.callback(&mycaller, "")
+				cmd.callback(mycaller, "")
 			} else {
 				fmt.Println("Unknown command")
 			}
@@ -54,7 +76,7 @@ func main() {
 			cmdName := cleanLine[0]
 			option := cleanLine[1]
 			if cmd, ok := supCom[cmdName]; ok {
-				cmd.callback(&mycaller, option)
+				cmd.callback(mycaller, option)
 			} else {
 				fmt.Println("Unknown command")
 			}
